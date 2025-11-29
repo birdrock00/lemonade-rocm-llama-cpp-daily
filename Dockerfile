@@ -26,4 +26,4 @@ RUN LATEST_URL=$(curl -s https://api.github.com/repos/lemonade-sdk/llamacpp-rocm
 RUN chmod +x ./llama-*
 
 # Set entrypoint (optional — adjust based on actual binary name)
-ENTRYPOINT ["/bin/bash"]
+
