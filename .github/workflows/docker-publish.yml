@@ -1,10 +1,8 @@
 name: Build and Push Docker Image
 
 on:
-  # Run daily at 2 AM UTC
   schedule:
     - cron: '0 2 * * *'
-  # Also allow manual trigger
   workflow_dispatch:
 
 jobs:
@@ -12,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write  # Required for ghcr.io
+      packages: write
 
     steps:
       - name: Checkout
@@ -28,18 +26,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract tag from latest release (optional for tagging)
+      - name: Extract tag from latest release
         id: get_tag
         run: |
           TAG=$(curl -s https://api.github.com/repos/lemonade-sdk/llamacpp-rocm/releases/latest | jq -r .tag_name)
           echo "TAG=${TAG#v}" >> $GITHUB_ENV
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image for x86_64
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: true
+          platforms: linux/amd64  # 👈 THIS IS CRITICAL
           tags: |
             ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:latest
             ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ env.TAG }}
