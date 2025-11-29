@@ -1,18 +1,42 @@
-# Use official Ubuntu as base (lightweight)
-FROM ubuntu:22.04
+# Use AMD's recommended base: Ubuntu 24.04
+FROM ubuntu:24.04
 
-# Install required tools
+# Expose server port
+EXPOSE 8080
+
+# Install base tools and GPG key for ROCm repo
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        gnupg \
         unzip \
         && rm -rf /var/lib/apt/lists/*
+
+# Add ROCm 7.0 repository (official AMD)
+RUN curl -fsSL https://repo.radeon.com/rocm/rocm.gpg.key | gpg --dearmor -o /usr/share/keyrings/rocm.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.0 noble main" \
+        > /etc/apt/sources.list.d/rocm.list
+
+# Install ROCm runtime + essential libraries
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        rocm-libs \
+        hip-runtime-amd \
+        libatomic1 \
+        libgomp1 \
+        libnuma1 \
+        && rm -rf /var/lib/apt/lists/*
+
+# Set ROCm environment (optional but recommended)
+ENV ROCM_PATH=/opt/rocm
+ENV PATH=$ROCM_PATH/bin:$PATH
+ENV LD_LIBRARY_PATH=$ROCM_PATH/lib:$LD_LIBRARY_PATH
 
 # Create app directory
 WORKDIR /app
 
-# Download and extract the latest gfx1151 Ubuntu zip from lemonade-sdk/llamacpp-rocm
+# Download and extract the latest gfx1151 Ubuntu binary from Lemonade SDK
 RUN LATEST_URL=$(curl -s https://api.github.com/repos/lemonade-sdk/llamacpp-rocm/releases/latest | \
                  grep "browser_download_url.*ubuntu.*gfx1151.*zip" | \
                  head -n 1 | \
@@ -22,8 +46,5 @@ RUN LATEST_URL=$(curl -s https://api.github.com/repos/lemonade-sdk/llamacpp-rocm
     unzip llama.zip && \
     rm llama.zip
 
-# Make binary executable (adjust name if needed — usually 'llama-cli' or similar)
+# Make binary executable
 RUN chmod +x ./llama-*
-
-# Set entrypoint (optional — adjust based on actual binary name)
-
