@@ -1,6 +1,7 @@
 FROM ubuntu:26.04
 
 EXPOSE 8080
+EXPOSE 8081
 
 # Install only what's needed
 RUN apt-get update && \
