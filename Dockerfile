@@ -1,4 +1,4 @@
-FROM ubuntu:26.02
+FROM ubuntu:26.04
 
 EXPOSE 8080
 
