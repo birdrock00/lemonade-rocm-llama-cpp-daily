@@ -26,11 +26,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract tag from latest release
-        id: get_tag
+      - name: Set UTC build date tag
         run: |
-          TAG=$(curl -s https://api.github.com/repos/lemonade-sdk/llamacpp-rocm/releases/latest | jq -r .tag_name)
-          echo "TAG=${TAG#v}" >> $GITHUB_ENV
+          echo "BUILD_DATE=$(date -u +'%Y%m%d')" >> "$GITHUB_ENV"
 
       - name: Build and push Docker image for x86_64
         uses: docker/build-push-action@v6
@@ -38,7 +36,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          platforms: linux/amd64  # 👈 THIS IS CRITICAL
+          platforms: linux/amd64
           tags: |
             ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:latest
-            ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ env.TAG }}
+            ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ env.BUILD_DATE }}
