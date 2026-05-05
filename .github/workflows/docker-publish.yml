@@ -1,8 +1,6 @@
-name: Build and Push Docker Image
+name: Build and Push b1253 Docker Image
 
 on:
-  schedule:
-    - cron: '0 15 * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,8 +11,10 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout
+      - name: Checkout b1253 branch
         uses: actions/checkout@v4
+        with:
+          ref: b1253
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -26,12 +26,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set image tags
-        run: |
-          echo "UTC_TIMESTAMP=$(date -u +'%Y%m%dT%H%M%SZ')" >> "$GITHUB_ENV"
-          echo "CURRENT_DATE=$(date +'%Y%m%d')" >> "$GITHUB_ENV"
-
-      - name: Build and push Docker image for x86_64
+      - name: Build and push b1253 Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -39,6 +34,4 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:latest
-            ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ env.UTC_TIMESTAMP }}
-            ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ env.CURRENT_DATE }}
+            ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:b1253
