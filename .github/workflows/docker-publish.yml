@@ -1,37 +1,47 @@
-name: Build and Push b1253 Docker Image
+FROM ubuntu:24.04
 
-on:
-  workflow_dispatch:
+ARG LLAMACPP_ROCM_TAG=b1253
+ARG LLAMACPP_ROCM_ARCH=gfx1151
 
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+ENV DEBIAN_FRONTEND=noninteractive
 
-    steps:
-      - name: Checkout b1253 branch
-        uses: actions/checkout@v4
-        with:
-          ref: b1253
+RUN set -eux; \
+    sed -i 's|http://archive.ubuntu.com/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list; \
+    apt-get -o Acquire::Retries=5 update; \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        unzip \
+        libgomp1 \
+        libnuma1 \
+        ocl-icd-libopencl1 \
+        pciutils; \
+    rm -rf /var/lib/apt/lists/*
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+WORKDIR /opt
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+RUN set -eux; \
+    ASSET="llama-${LLAMACPP_ROCM_TAG}-ubuntu-rocm-${LLAMACPP_ROCM_ARCH}-x64"; \
+    curl -fsSL \
+      --retry 5 \
+      --retry-delay 5 \
+      --retry-all-errors \
+      -o /tmp/llamacpp-rocm.zip \
+      "https://github.com/lemonade-sdk/llamacpp-rocm/releases/download/${LLAMACPP_ROCM_TAG}/${ASSET}.zip"; \
+    unzip -q /tmp/llamacpp-rocm.zip -d /opt; \
+    rm -f /tmp/llamacpp-rocm.zip; \
+    test -x "/opt/${ASSET}/llama-server" || chmod +x "/opt/${ASSET}/llama-server"; \
+    find "/opt/${ASSET}" -maxdepth 1 -type f -name "llama-*" -exec chmod +x {} \; ; \
+    ln -sf "/opt/${ASSET}/llama-server" /usr/local/bin/llama-server; \
+    ln -sf "/opt/${ASSET}/llama-cli" /usr/local/bin/llama-cli || true; \
+    ln -sf "/opt/${ASSET}/llama-bench" /usr/local/bin/llama-bench || true; \
+    ln -sf "/opt/${ASSET}/rpc-server" /usr/local/bin/rpc-server || true
 
-      - name: Build and push b1253 Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:b1253
+ENV LLAMA_CPP_DIR=/opt/llama-b1253-ubuntu-rocm-gfx1151-x64
+ENV PATH="${LLAMA_CPP_DIR}:${PATH}"
+ENV LD_LIBRARY_PATH="${LLAMA_CPP_DIR}:${LLAMA_CPP_DIR}/lib:${LLAMA_CPP_DIR}/rocm/lib:${LLAMA_CPP_DIR}/rocm/lib64"
+
+EXPOSE 8080
+
+ENTRYPOINT ["llama-server"]
+CMD ["--host", "0.0.0.0", "--port", "8080"]
