@@ -1,65 +1,47 @@
-  FROM ubuntu:24.04
+name: Build b1253 Docker Image
 
-  ARG LLAMACPP_ROCM_TAG=b1253
-  ARG LLAMACPP_ROCM_ARCH=gfx1151
+on:
+  push:
+    branches:
+      - b1253
+  workflow_dispatch:
 
-  ENV DEBIAN_FRONTEND=noninteractive
+jobs:
+  build-and-push:
+    if: github.ref == 'refs/heads/b1253'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-  RUN cat > /etc/apt/sources.list.d/ubuntu.sources <<'EOF'
-  Types: deb
-  URIs: http://azure.archive.ubuntu.com/ubuntu
-  Suites: noble noble-updates noble-backports
-  Components: main restricted universe multiverse
-  Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  Types: deb
-  URIs: http://azure.archive.ubuntu.com/ubuntu
-  Suites: noble-security
-  Components: main restricted universe multiverse
-  Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
-  EOF
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-  RUN set -eux; \
-      for i in 1 2 3 4 5; do \
-        apt-get -o Acquire::Retries=5 update && \
-        apt-get install -y --no-install-recommends \
-          ca-certificates \
-          curl \
-          unzip \
-          libgomp1 \
-          libnuma1 \
-          ocl-icd-libopencl1 \
-          pciutils && \
-        break; \
-        echo "apt failed, retrying in 15s..."; \
-        sleep 15; \
-      done; \
-      rm -rf /var/lib/apt/lists/*
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-  WORKDIR /opt
+      - name: Set image metadata
+        run: |
+          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=${GITHUB_REF_NAME//\//-}" >> "$GITHUB_ENV"
 
-  RUN set -eux; \
-      ASSET="llama-${LLAMACPP_ROCM_TAG}-ubuntu-rocm-${LLAMACPP_ROCM_ARCH}-x64"; \
-      curl -fsSL \
-        --retry 5 \
-        --retry-delay 5 \
-        --retry-all-errors \
-        -o /tmp/llamacpp-rocm.zip \
-        "https://github.com/lemonade-sdk/llamacpp-rocm/releases/download/${LLAMACPP_ROCM_TAG}/${ASSET}.zip"; \
-      unzip -q /tmp/llamacpp-rocm.zip -d /opt; \
-      rm -f /tmp/llamacpp-rocm.zip; \
-      chmod +x "/opt/${ASSET}/llama-server"; \
-      find "/opt/${ASSET}" -maxdepth 1 -type f -name "llama-*" -exec chmod +x {} \; ; \
-      ln -sf "/opt/${ASSET}/llama-server" /usr/local/bin/llama-server; \
-      ln -sf "/opt/${ASSET}/llama-cli" /usr/local/bin/llama-cli || true; \
-      ln -sf "/opt/${ASSET}/llama-bench" /usr/local/bin/llama-bench || true; \
-      ln -sf "/opt/${ASSET}/rpc-server" /usr/local/bin/rpc-server || true
-
-  ENV LLAMA_CPP_DIR=/opt/llama-b1253-ubuntu-rocm-gfx1151-x64
-  ENV PATH="${LLAMA_CPP_DIR}:${PATH}"
-  ENV LD_LIBRARY_PATH="${LLAMA_CPP_DIR}:${LLAMA_CPP_DIR}/lib:${LLAMA_CPP_DIR}/rocm/lib:${LLAMA_CPP_DIR}/rocm/lib64"
-
-  EXPOSE 8080
-
-  ENTRYPOINT ["llama-server"]
-  CMD ["--host", "0.0.0.0", "--port", "8080"]
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          build-args: |
+            LLAMACPP_ROCM_TAG=${{ github.ref_name }}
+            LLAMACPP_ROCM_ARCH=gfx1151
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
