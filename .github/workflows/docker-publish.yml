@@ -27,9 +27,10 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set image tags
+        id: release-date
         run: |
           echo "UTC_TIMESTAMP=$(date -u +'%Y%m%dT%H%M%SZ')" >> "$GITHUB_ENV"
-          echo "CURRENT_DATE=$(date +'%Y%m%d')" >> "$GITHUB_ENV"
+          echo "tag=$(date -u +'%m-%d-%Y')" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image for x86_64
         uses: docker/build-push-action@v6
@@ -41,4 +42,4 @@ jobs:
           tags: |
             ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:latest
             ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ env.UTC_TIMESTAMP }}
-            ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ env.CURRENT_DATE }}
+            ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ steps.release-date.outputs.tag }}
