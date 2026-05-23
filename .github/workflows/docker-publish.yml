@@ -9,7 +9,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -43,3 +43,14 @@ jobs:
             ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:latest
             ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ env.UTC_TIMESTAMP }}
             ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ steps.release-date.outputs.tag }}
+
+      - name: Create release for daily image
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: image-${{ steps.release-date.outputs.tag }}-${{ github.run_id }}
+          name: Container image ${{ steps.release-date.outputs.tag }}
+          body: |
+            Container image for ${{ steps.release-date.outputs.tag }}:
+
+            `ghcr.io/birdrock00/lemonade-rocm-llama-cpp-daily:${{ steps.release-date.outputs.tag }}`
+          make_latest: true
