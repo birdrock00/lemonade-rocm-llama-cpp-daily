@@ -1,11 +1,8 @@
 name: Build and Push Docker Image
 
 on:
-  push:
-    branches:
-      - master
-  schedule:
-    - cron: '0 15 * * *'
+  # This build resolves an upstream release dynamically. Run it only after
+  # reviewing the upstream release and allowing an appropriate cooldown.
   workflow_dispatch:
 
 jobs:
